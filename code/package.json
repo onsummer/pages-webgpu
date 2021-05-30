@@ -12,7 +12,7 @@
     "vite": "^2.3.4"
   },
   "dependencies": {
-    "svelte-routing": "^1.6.0",
+    "highlight.js": "^10.7.2",
     "sveltestrap": "^5.0.6"
   }
 }
