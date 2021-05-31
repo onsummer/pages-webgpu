@@ -1,22 +1,36 @@
 <script>
-  import { onMount, afterUpdate } from "svelte";
+  import { afterUpdate } from "svelte";
   import CodeArea from "./CodeArea.svelte";
-
-  export let sourceCode = `// 示例代码
-function sayHi() {
-  console.log('Hello WebGPU!');
-}`;
+  import { sys } from "../store/sys.js";
 
   let gpuCanvas;
   afterUpdate(() => {
     gpuCanvas.width = gpuCanvas.clientWidth;
     gpuCanvas.height = gpuCanvas.clientHeight;
   });
+
+  sys.subscribe(async ({ pageName }) => {
+    if (pageName === "" || pageName === undefined) {
+      return;
+    }
+    try {
+      const demo = await import(`../pages/${pageName}.js`);
+
+      const { init } = demo;
+      if (pageName === "texture") {
+        init(gpuCanvas).then(fn => fn())
+      } else {
+        init(gpuCanvas)
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  });
 </script>
 
 <div class="board">
   <div class="board-left">
-    <CodeArea code={sourceCode} />
+    <CodeArea />
   </div>
   <div class="board-right">
     <canvas id="gpucanvas" bind:this={gpuCanvas} />
@@ -38,25 +52,6 @@ function sayHi() {
     padding: 1rem;
 
     overflow-y: auto;
-  }
-
-  /* 滚动槽 */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    border-radius: 3px;
-    background: rgba(0, 0, 0, 0.06);
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
-    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
-  }
-  /* 滚动条滑块 */
-  ::-webkit-scrollbar-thumb {
-    border-radius: 3px;
-    background: rgba(0, 0, 0, 0.12);
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
-    -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
   }
 
   .board-right {

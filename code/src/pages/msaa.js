@@ -1,0 +1,240 @@
+const vertexShaderSource = `[[builtin(position)]] var<out> out_position: vec4<f32>;
+[[location(0)]] var<out> out_color: vec4<f32>;
+[[location(0)]] var<in> in_position_2d: vec2<f32>;
+[[location(1)]] var<in> in_color_rgba: vec4<f32>;
+[[stage(vertex)]]
+fn main() -> void {
+  out_position = vec4<f32>(in_position_2d, 0.0, 1.0);
+  out_color = in_color_rgba;
+  return;
+}
+`
+
+const fragmentShaderSource = `[[location(0)]] var<out> outColor: vec4<f32>;
+[[location(0)]] var<in> in_color: vec4<f32>;
+[[stage(fragment)]]
+fn main() -> void {
+  outColor = in_color;
+  return;
+}
+`
+
+const javascriptCode = `const canvas = document.getElementById('gpuweb')
+const vbodata = new Float32Array([
+  -0.5, 0.0, 1.0, 0.0, 0.0, 1.0,
+  0.0, 0.5, 0.0, 1.0, 0.0, 1.0,
+  0.5, 0.0, 0.0, 0.0, 1.0, 1.0
+])
+
+const vertexShaderSource = \`${vertexShaderSource}\`
+
+const fragmentShaderSource = \`${fragmentShaderSource}\`
+
+async function render() {
+  const adapter = await navigator.gpu.requestAdapter()
+  const device = await adapter.requestDevice()
+
+  const context = canvas.getContext('gpupresent')
+  const swapChainFormat = "bgra8unorm"
+  const swapChain = context.configureSwapChain({
+    device,
+    format: swapChainFormat
+  })
+
+  const sampleTimes = 4
+
+  const vbo = device.createBuffer({
+    size: vbodata.byteLength,
+    usage: GPUBufferUsage.VERTEX,
+    mappedAtCreation: true
+  })
+  new Float32Array(vbo.getMappedRange()).set(vbodata)
+  vbo.unmap()
+
+  const pipeline = device.createRenderPipeline({
+    vertex: {
+      module: device.createShaderModule({
+        code: vertexShaderSource
+      }),
+      entryPoint: 'main',
+      buffers: [{
+        arrayStride: 6 * vbodata.BYTES_PER_ELEMENT,
+        attributes: [{
+          shaderLocation: 0,
+          offset: 0,
+          format: 'float32x2'
+        }, {
+          shaderLocation: 1,
+          offset: 2 * vbodata.BYTES_PER_ELEMENT,
+          format: 'float32x4'
+        }]
+      }]
+    },
+    fragment: {
+      module: device.createShaderModule({
+        code: fragmentShaderSource
+      }),
+      entryPoint: 'main',
+      targets: [
+        {
+          format: swapChainFormat
+        }
+      ]
+    },
+    primitive: {
+      topology: 'triangle-list',
+    },
+    multisample: {
+      count: sampleTimes
+    }
+  })
+
+  const texture = device.createTexture({
+    size: {
+      width: canvas.width,
+      height: canvas.height,
+    },
+    sampleCount: sampleTimes,
+    format: swapChainFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  })
+  const msaa_textureView = texture.createView()
+
+  const commandEncoder = device.createCommandEncoder()
+  const textureView = swapChain.getCurrentTexture().createView()
+  const renderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: msaa_textureView,
+        resolveTarget: textureView,
+        loadValue: {
+          r: 0.0,
+          g: 0.0,
+          b: 0.0,
+          a: 1.0
+        }
+      }
+    ]
+  }
+
+  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
+  passEncoder.setPipeline(pipeline)
+  passEncoder.setVertexBuffer(0, vbo)
+  passEncoder.draw(3, 1, 0, 0)
+  passEncoder.endPass()
+
+  device.queue.submit([commandEncoder.finish()])
+}
+
+render()
+`
+
+const vbodata = new Float32Array([
+  -0.5, 0.0, 1.0, 0.0, 0.0, 1.0,
+  0.0, 0.5, 0.0, 1.0, 0.0, 1.0,
+  0.5, 0.0, 0.0, 0.0, 1.0, 1.0
+])
+
+async function init(canvas) {
+  // @ts-ignore
+  const adapter = await navigator.gpu.requestAdapter()
+  const device = await adapter.requestDevice()
+
+  const context = canvas.getContext('gpupresent')
+  const swapChainFormat = `bgra8unorm`
+  const swapChain = context.configureSwapChain({
+    device,
+    format: swapChainFormat
+  })
+
+  const sampleTimes = 4
+
+  const vbo = device.createBuffer({
+    size: vbodata.byteLength,
+    // @ts-ignore
+    usage: GPUBufferUsage.VERTEX,
+    mappedAtCreation: true
+  })
+  new Float32Array(vbo.getMappedRange()).set(vbodata)
+  vbo.unmap()
+
+  const pipeline = device.createRenderPipeline({
+    vertex: {
+      module: device.createShaderModule({
+        code: vertexShaderSource
+      }),
+      entryPoint: 'main',
+      buffers: [{
+        arrayStride: 6 * vbodata.BYTES_PER_ELEMENT,
+        attributes: [{
+          shaderLocation: 0,
+          offset: 0,
+          format: 'float32x2'
+        }, {
+          shaderLocation: 1,
+          offset: 2 * vbodata.BYTES_PER_ELEMENT,
+          format: 'float32x4'
+        }]
+      }]
+    },
+    fragment: {
+      module: device.createShaderModule({
+        code: fragmentShaderSource
+      }),
+      entryPoint: 'main',
+      targets: [
+        {
+          format: swapChainFormat
+        }
+      ]
+    },
+    primitive: {
+      topology: 'triangle-list',
+    },
+    multisample: {
+      count: sampleTimes
+    }
+  })
+
+  const texture = device.createTexture({
+    size: {
+      width: canvas.width,
+      height: canvas.height,
+    },
+    sampleCount: sampleTimes,
+    format: swapChainFormat,
+    // @ts-ignore
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  })
+  const msaa_textureView = texture.createView()
+
+  const commandEncoder = device.createCommandEncoder()
+  const textureView = swapChain.getCurrentTexture().createView()
+  const renderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: msaa_textureView,
+        resolveTarget: textureView,
+        loadValue: {
+          r: 0.0,
+          g: 0.0,
+          b: 0.0,
+          a: 1.0
+        }
+      }
+    ]
+  }
+
+  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
+  passEncoder.setPipeline(pipeline)
+  passEncoder.setVertexBuffer(0, vbo)
+  passEncoder.draw(3, 1, 0, 0)
+  passEncoder.endPass()
+
+  device.queue.submit([commandEncoder.finish()])
+}
+
+export {
+  javascriptCode,
+  init
+}

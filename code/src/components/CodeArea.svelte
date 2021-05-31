@@ -1,15 +1,14 @@
 <script>
   import hljs from "highlight.js";
   import javascript from "highlight.js/lib/languages/javascript";
-  // import "highlight.js/styles/atelier-heath-dark.css";
   // import "highlight.js/styles/agate.css";
   import "highlight.js/styles/shades-of-purple.css";
-  import { onMount } from "svelte";
+  import { afterUpdate } from "svelte";
   import { sys } from "../store/sys.js";
 
   hljs.registerLanguage("javascript", javascript);
 
-  export let code;
+  let code;
   let codeDiv;
 
   sys.subscribe(async ({ pageName }) => {
@@ -18,29 +17,23 @@
     }
     try {
       const demo = await import(`../pages/${pageName}.js`);
-      if ('test' in demo) {
-        demo.test()
-      } else {
-        console.log(pageName)
-      }
+      // 如果直接把 demo.javascriptCode 插入 code 内，貌似无法更新
+      code.innerText = demo.javascriptCode;
+      const blocks = codeDiv.querySelectorAll("pre code");
+      blocks.forEach((block) => {
+        // @ts-ignore
+        hljs.highlightElement(block);
+      });
+    } catch (e) {
+      console.log(e);
     }
-    catch (e) {
-      console.log(e)
-    }
-  });
-
-  onMount(() => {
-    const blocks = codeDiv.querySelectorAll("pre code");
-    blocks.forEach((block) => {
-      // @ts-ignore
-      hljs.highlightElement(block);
-    });
   });
 </script>
 
 <div bind:this={codeDiv} class="code">
   <pre>
-    <code lang="javascript">{code}</code>
+    <code bind:this={code} lang="javascript"></code>
+    <!-- 作为 slot 插入，异步无法更新 -->
   </pre>
 </div>
 
@@ -54,6 +47,11 @@
   .code {
     font-family: FiraCode;
     font-size: small;
+  }
+
+  pre {
+    max-height: 60vh;
+    overflow: scroll;
   }
 
   code {
